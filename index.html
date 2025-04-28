@@ -39,12 +39,29 @@ const background = new Image();
 background.src = 'https://github.com/nea1228/eternal-return-board/raw/main/image.png';
 
 background.onload = () => {
-  // キャンバスのサイズに合わせて画像をリサイズ
   const canvasWidth = canvas.width;
   const canvasHeight = canvas.height;
 
-  // 背景画像を画面いっぱいに描画
-  ctx.drawImage(background, 0, 0, canvasWidth, canvasHeight);
+  // 画像の元の幅と高さ
+  const imgWidth = background.width;
+  const imgHeight = background.height;
+
+  // 縦横比を保つための計算
+  const widthRatio = canvasWidth / imgWidth;
+  const heightRatio = canvasHeight / imgHeight;
+  
+  // 縦横比を保つための新しい幅と高さ
+  const ratio = Math.min(widthRatio, heightRatio); // 縦横どちらかにフィットするように最小の比率を取る
+  const newWidth = imgWidth * ratio;
+  const newHeight = imgHeight * ratio;
+
+  // キャンバス内に縦横比を保って描画
+  const offsetX = (canvasWidth - newWidth) / 2; // 画像を横方向で中央に配置
+  const offsetY = (canvasHeight - newHeight) / 2; // 画像を縦方向で中央に配置
+
+  // 背景画像を中央に配置して描画
+  ctx.clearRect(0, 0, canvas.width, canvas.height); // 既存の描画を消す
+  ctx.drawImage(background, offsetX, offsetY, newWidth, newHeight);
 };
 
 // ペンツールでお絵描き
