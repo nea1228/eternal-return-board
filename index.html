@@ -36,7 +36,7 @@ window.addEventListener('resize', resizeCanvas);
 
 // 背景マップ（ここは好きなマップ画像に変えてOK）
 const background = new Image();
-background.src = 'https://github.com/nea1228/eternal-return-board/blob/main/image.png'; // 適当なマップ画像
+background.src = 'https://github.com/nea1228/eternal-return-board/raw/main/image.png'; // 適当なマップ画像
 background.onload = () => {
   ctx.drawImage(background, 0, 0, canvas.width, canvas.height);
 };
