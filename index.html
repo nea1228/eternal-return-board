@@ -31,6 +31,9 @@
       border: none;
       cursor: pointer;
     }
+    .active {
+      border: 2px solid black;
+    }
   </style>
 </head>
 <body>
@@ -38,7 +41,7 @@
 <!-- 背景マップ -->
 <canvas id="map"></canvas>
 
-<!-- キャラクターアイコン（例：味方チーム用） -->
+<!-- ツールバー -->
 <div class="toolbar">
   <h3>ペンツール</h3>
   <div class="color-picker">
@@ -48,7 +51,7 @@
     <button style="background-color: green;" data-color="green"></button>
   </div>
   <br>
-  <button id="pen-thin">細いペン</button>
+  <button id="pen-thin" class="active">細いペン</button>
   <button id="pen-thick">太いペン</button>
   <br>
   <button id="eraser">消しゴム</button>
@@ -98,6 +101,7 @@ let drawing = false;
 let erasing = false;
 let currentColor = 'red';
 let currentLineWidth = 3;
+let currentMode = 'pen'; // 現在のモード
 
 // アイコンを動かすための関数
 let dragging = false;
@@ -156,13 +160,15 @@ document.addEventListener('pointerup', () => {
 
 // ペンツールの操作
 canvas.addEventListener('pointerdown', (e) => {
-  drawing = true;
-  ctx.beginPath();
-  ctx.moveTo(e.clientX, e.clientY);
+  if (currentMode === 'pen') {
+    drawing = true;
+    ctx.beginPath();
+    ctx.moveTo(e.clientX, e.clientY);
+  }
 });
 
 canvas.addEventListener('pointermove', (e) => {
-  if (drawing) {
+  if (drawing && currentMode === 'pen') {
     ctx.lineTo(e.clientX, e.clientY);
     ctx.strokeStyle = currentColor;
     ctx.lineWidth = currentLineWidth;
@@ -176,10 +182,13 @@ canvas.addEventListener('pointerup', () => {
 
 // 消しゴムの操作
 document.getElementById('eraser').addEventListener('click', () => {
-  erasing = !erasing;
-  if (erasing) {
+  currentMode = currentMode === 'eraser' ? 'pen' : 'eraser';
+  updateModeButton();
+  if (currentMode === 'eraser') {
+    erasing = true;
     ctx.globalCompositeOperation = 'destination-out';
   } else {
+    erasing = false;
     ctx.globalCompositeOperation = 'source-over';
   }
 });
@@ -194,10 +203,12 @@ document.querySelectorAll('.color-picker button').forEach(button => {
 // ペンの太さ変更
 document.getElementById('pen-thin').addEventListener('click', () => {
   currentLineWidth = 3;
+  updateLineWidthButton('thin');
 });
 
 document.getElementById('pen-thick').addEventListener('click', () => {
   currentLineWidth = 6;
+  updateLineWidthButton('thick');
 });
 
 // チームの選択
@@ -208,6 +219,22 @@ document.getElementById('team-red').addEventListener('click', () => {
 document.getElementById('team-blue').addEventListener('click', () => {
   placeCharacterIcons('blue');
 });
+
+// モードボタンの更新
+function updateModeButton() {
+  document.querySelectorAll('.toolbar button').forEach(button => {
+    button.classList.remove('active');
+  });
+  if (currentMode === 'pen') {
+    document.getElementById(currentLineWidth === 3 ? 'pen-thin' : 'pen-thick').classList.add('active');
+  } else if (currentMode === 'eraser') {
+    document.getElementById('eraser').classList.add('active');
+  }
+}
+
+// 初期化
+updateModeButton();
+
 </script>
 
 </body>
