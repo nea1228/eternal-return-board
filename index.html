@@ -6,96 +6,83 @@
   <style>
     body { margin: 0; overflow: hidden; touch-action: none; }
     canvas { position: absolute; top: 0; left: 0; }
-    .icon {
+    img.icon {
       position: absolute;
       width: 50px;
       height: 50px;
       touch-action: none;
       user-select: none;
     }
-    .toolbar {
-      position: fixed;
+    .mode-button {
+      position: absolute;
       top: 10px;
       left: 10px;
-      background: rgba(255, 255, 255, 0.8);
       padding: 10px;
-      border-radius: 8px;
-    }
-    .toolbar button {
-      margin: 5px;
+      background-color: #fff;
+      border: 1px solid #ccc;
+      cursor: pointer;
     }
   </style>
 </head>
 <body>
 
-<!-- 背景マップ -->
+<!-- 背景用キャンバス -->
+<canvas id="backgroundCanvas"></canvas>
+
+<!-- 描画用キャンバス -->
 <canvas id="map"></canvas>
 
 <!-- キャラアイコン（例：味方チーム用） -->
 <img src="https://upload.wikimedia.org/wikipedia/commons/8/84/Example.svg" class="icon" id="icon1" style="left: 100px; top: 100px;">
-<img src="https://upload.wikimedia.org/wikipedia/commons/8/84/Example.svg" class="icon" id="icon2" style="left: 200px; top: 100px;">
-<img src="https://upload.wikimedia.org/wikipedia/commons/8/84/Example.svg" class="icon" id="icon3" style="left: 300px; top: 100px;">
 
-<!-- ツールバー -->
-<div class="toolbar">
-  <button id="pen">ペン</button>
-  <button id="eraser">消しゴム</button>
-  <button id="clear">クリア</button>
-  <br>
-  <label for="color">色:</label>
-  <select id="color">
-    <option value="red">赤</option>
-    <option value="blue">青</option>
-    <option value="orange">オレンジ</option>
-    <option value="green">緑</option>
-  </select>
-  <br>
-  <label for="size">太さ:</label>
-  <select id="size">
-    <option value="3">細い</option>
-    <option value="6">普通</option>
-    <option value="10">太い</option>
-  </select>
-</div>
+<!-- モード切替ボタン -->
+<div id="modeButton" class="mode-button">ペンモード</div>
 
 <script>
 const canvas = document.getElementById('map');
 const ctx = canvas.getContext('2d');
-const icons = document.querySelectorAll('.icon');
-let currentMode = 'pen'; // 'pen' または 'eraser'
-let currentColor = 'red';
-let currentSize = 3;
+const backgroundCanvas = document.getElementById('backgroundCanvas');
+const backgroundCtx = backgroundCanvas.getContext('2d');
+const modeButton = document.getElementById('modeButton');
+let currentMode = 'pen'; // 初期モードはペン
 let drawing = false;
 let erasing = false;
-let offsetX, offsetY;
 
 function resizeCanvas() {
   canvas.width = window.innerWidth;
   canvas.height = window.innerHeight;
+  backgroundCanvas.width = window.innerWidth;
+  backgroundCanvas.height = window.innerHeight;
 }
 resizeCanvas();
 window.addEventListener('resize', resizeCanvas);
 
-// 背景マップ
+// 背景マップ（ここは好きなマップ画像に変えてOK）
 const background = new Image();
 background.src = 'https://github.com/nea1228/eternal-return-board/raw/main/image.png';
+
 background.onload = () => {
-  const canvasWidth = canvas.width;
-  const canvasHeight = canvas.height;
-  const imgWidth = background.width;
-  const imgHeight = background.height;
-  const widthRatio = canvasWidth / imgWidth;
-  const heightRatio = canvasHeight / imgHeight;
-  const ratio = Math.min(widthRatio, heightRatio);
-  const newWidth = imgWidth * ratio;
-  const newHeight = imgHeight * ratio;
-  const offsetX = (canvasWidth - newWidth) / 2;
-  const offsetY = (canvasHeight - newHeight) / 2;
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-  ctx.drawImage(background, offsetX, offsetY, newWidth, newHeight);
+  backgroundCtx.drawImage(background, 0, 0, backgroundCanvas.width, backgroundCanvas.height);
 };
 
-// 描画
+// モード切替ボタンのクリックイベント
+modeButton.addEventListener('click', () => {
+  if (currentMode === 'pen') {
+    currentMode = 'eraser';
+    modeButton.textContent = '消しゴムモード';
+    erasing = true;
+    ctx.globalCompositeOperation = 'destination-out'; // 消去モードに設定
+    ctx.lineWidth = 10; // 消しゴムの太さ
+    ctx.strokeStyle = 'rgba(0,0,0,1)'; // 不透明な黒で描画
+  } else {
+    currentMode = 'pen';
+    modeButton.textContent = 'ペンモード';
+    erasing = false;
+    ctx.globalCompositeOperation = 'source-over'; // 通常の描画モードに戻す
+  }
+});
+
+// ペンツールでお絵描き
 canvas.addEventListener('pointerdown', (e) => {
   drawing = true;
   ctx.beginPath();
@@ -103,19 +90,8 @@ canvas.addEventListener('pointerdown', (e) => {
 });
 canvas.addEventListener('pointermove', (e) => {
   if (drawing) {
-    if (currentMode === 'pen') {
-      ctx.lineTo(e.clientX, e.clientY);
-      ctx.strokeStyle = currentColor;
-      ctx.lineWidth = currentSize;
-      ctx.stroke();
-    } else if (currentMode === 'eraser') {
-      ctx.globalCompositeOperation = 'destination-out';
-      ctx.lineTo(e.clientX, e.clientY);
-      ctx.strokeStyle = 'rgba(0,0,0,1)';
-      ctx.lineWidth = currentSize;
-      ctx.stroke();
-      ctx.globalCompositeOperation = 'source-over';
-    }
+    ctx.lineTo(e.clientX, e.clientY);
+    ctx.stroke();
   }
 });
 canvas.addEventListener('pointerup', () => {
@@ -123,44 +99,23 @@ canvas.addEventListener('pointerup', () => {
 });
 
 // アイコンドラッグ
-icons.forEach(icon => {
-  icon.addEventListener('pointerdown', (e) => {
-    erasing = false;
-    offsetX = e.offsetX;
-    offsetY = e.offsetY;
-    icon.setPointerCapture(e.pointerId);
-  });
-  icon.addEventListener('pointermove', (e) => {
-    if (e.buttons === 1) {
-      icon.style.left = (e.clientX - offsetX) + 'px';
-      icon.style.top = (e.clientY - offsetY) + 'px';
-    }
-  });
-  icon.addEventListener('pointerup', () => {
-    erasing = false;
-  });
-});
+const icon = document.getElementById('icon1');
+let dragging = false;
+let offsetX, offsetY;
 
-// モード切替
-document.getElementById('pen').addEventListener('click', () => {
-  currentMode = 'pen';
+icon.addEventListener('pointerdown', (e) => {
+  dragging = true;
+  offsetX = e.offsetX;
+  offsetY = e.offsetY;
 });
-document.getElementById('eraser').addEventListener('click', () => {
-  currentMode = 'eraser';
+document.addEventListener('pointermove', (e) => {
+  if (dragging) {
+    icon.style.left = (e.clientX - offsetX) + 'px';
+    icon.style.top = (e.clientY - offsetY) + 'px';
+  }
 });
-document.getElementById('clear').addEventListener('click', () => {
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-  ctx.drawImage(background, offsetX, offsetY, newWidth, newHeight);
-});
-
-// 色変更
-document.getElementById('color').addEventListener('change', (e) => {
-  currentColor = e.target.value;
-});
-
-// 太さ変更
-document.getElementById('size').addEventListener('change', (e) => {
-  currentSize = parseInt(e.target.value);
+document.addEventListener('pointerup', () => {
+  dragging = false;
 });
 </script>
 
