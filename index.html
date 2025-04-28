@@ -2,173 +2,167 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
-  <title>作戦ボード（プロトタイプ）</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>マップ描画ツール</title>
   <style>
-    body { margin: 0; overflow: hidden; touch-action: none; }
-    canvas { position: absolute; top: 0; left: 0; }
-    img.icon {
-      position: absolute;
-      width: 50px;
-      height: 50px;
-      touch-action: none;
-      user-select: none;
+    body, html {
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      height: 100%;
     }
-    .mode-button, .tool-button {
+    canvas {
+      position: absolute;
+      top: 0;
+      left: 0;
+      z-index: 1;
+    }
+    #menu {
       position: absolute;
       top: 10px;
+      left: 10px;
+      z-index: 2;
+      background: rgba(255, 255, 255, 0.8);
       padding: 10px;
-      background-color: #fff;
-      border: 1px solid #ccc;
-      cursor: pointer;
+      border-radius: 5px;
     }
-    .tool-button {
+    #characterList {
+      display: none;
+      position: absolute;
       top: 50px;
+      left: 10px;
+      background: rgba(255, 255, 255, 0.8);
+      padding: 10px;
+      border-radius: 5px;
+    }
+    #characterList img {
+      width: 50px;
+      height: 50px;
+      margin: 5px;
+      cursor: pointer;
     }
   </style>
 </head>
 <body>
+  <div id="menu">
+    <button id="characterSelectBtn">キャラクター選択</button>
+    <button id="penModeBtn">ペンモード</button>
+    <button id="eraserModeBtn">消しゴムモード</button>
+    <div id="colorPicker">
+      <button onclick="changeColor('red')">赤</button>
+      <button onclick="changeColor('blue')">青</button>
+      <button onclick="changeColor('orange')">オレンジ</button>
+      <button onclick="changeColor('green')">緑</button>
+    </div>
+    <div id="lineWidthPicker">
+      <button onclick="changeLineWidth(5)">細</button>
+      <button onclick="changeLineWidth(10)">中</button>
+      <button onclick="changeLineWidth(15)">太</button>
+    </div>
+  </div>
+  <div id="characterList">
+    <img src="char1.png" alt="キャラクター1" onclick="selectCharacter('キャラクター1')">
+    <img src="char2.png" alt="キャラクター2" onclick="selectCharacter('キャラクター2')">
+    <!-- 他のキャラクター画像を追加 -->
+  </div>
+  <canvas id="backgroundCanvas"></canvas>
+  <canvas id="drawingCanvas"></canvas>
 
-<!-- 背景用キャンバス -->
-<canvas id="backgroundCanvas"></canvas>
+  <script>
+    const backgroundCanvas = document.getElementById('backgroundCanvas');
+    const backgroundCtx = backgroundCanvas.getContext('2d');
+    const drawingCanvas = document.getElementById('drawingCanvas');
+    const drawingCtx = drawingCanvas.getContext('2d');
+    const characterSelectBtn = document.getElementById('characterSelectBtn');
+    const penModeBtn = document.getElementById('penModeBtn');
+    const eraserModeBtn = document.getElementById('eraserModeBtn');
+    const characterList = document.getElementById('characterList');
+    const colorPicker = document.getElementById('colorPicker');
+    const lineWidthPicker = document.getElementById('lineWidthPicker');
 
-<!-- 描画用キャンバス -->
-<canvas id="map"></canvas>
+    let drawing = false;
+    let mode = 'pen';
+    let color = 'red';
+    let lineWidth = 5;
 
-<!-- キャラアイコン（例：味方チーム用） -->
-<img src="https://upload.wikimedia.org/wikipedia/commons/8/84/Example.svg" class="icon" id="icon1" style="left: 100px; top: 100px;">
+    const backgroundImage = new Image();
+    backgroundImage.src = 'https://github.com/nea1228/eternal-return-board/raw/main/image.png'; // 背景画像のパス
 
-<!-- モード切替ボタン -->
-<div id="modeButton" class="mode-button">ペンモード</div>
+    backgroundImage.onload = () => {
+      const canvasWidth = window.innerWidth;
+      const canvasHeight = window.innerHeight;
+      const imgWidth = backgroundImage.width;
+      const imgHeight = backgroundImage.height;
 
-<!-- ツールボタン -->
-<div id="toolButtons" class="tool-button">
-  <button id="penButton">ペン</button>
-  <button id="eraserButton">消しゴム</button>
-  <button id="clearButton">クリア</button>
-</div>
+      const widthRatio = canvasWidth / imgWidth;
+      const heightRatio = canvasHeight / imgHeight;
+      const ratio = Math.min(widthRatio, heightRatio);
 
-<script>
-const canvas = document.getElementById('map');
-const ctx = canvas.getContext('2d');
-const backgroundCanvas = document.getElementById('backgroundCanvas');
-const backgroundCtx = backgroundCanvas.getContext('2d');
-const modeButton = document.getElementById('modeButton');
-const penButton = document.getElementById('penButton');
-const eraserButton = document.getElementById('eraserButton');
-const clearButton = document.getElementById('clearButton');
-let currentMode = 'pen'; // 初期モードはペン
-let drawing = false;
-let erasing = false;
-let lineWidth = 5; // 初期の線の太さ
-let strokeStyle = 'red'; // 初期の線の色
+      const newWidth = imgWidth * ratio;
+      const newHeight = imgHeight * ratio;
+      const offsetX = (canvasWidth - newWidth) / 2;
+      const offsetY = (canvasHeight - newHeight) / 2;
 
-function resizeCanvas() {
-  canvas.width = window.innerWidth;
-  canvas.height = window.innerHeight;
-  backgroundCanvas.width = window.innerWidth;
-  backgroundCanvas.height = window.innerHeight;
-}
-resizeCanvas();
-window.addEventListener('resize', resizeCanvas);
+      backgroundCanvas.width = canvasWidth;
+      backgroundCanvas.height = canvasHeight;
+      backgroundCtx.drawImage(backgroundImage, offsetX, offsetY, newWidth, newHeight);
 
-// 背景マップ（ここは好きなマップ画像に変えてOK）
-const background = new Image();
-background.src = 'https://github.com/nea1228/eternal-return-board/raw/main/image.png';
+      drawingCanvas.width = canvasWidth;
+      drawingCanvas.height = canvasHeight;
+    };
 
-background.onload = () => {
-  const canvasWidth = canvas.width;
-  const canvasHeight = canvas.height;
+    characterSelectBtn.addEventListener('click', () => {
+      characterList.style.display = characterList.style.display === 'block' ? 'none' : 'block';
+    });
 
-  // 画像の元の幅と高さ
-  const imgWidth = background.width;
-  const imgHeight = background.height;
+    penModeBtn.addEventListener('click', () => {
+      switchMode('pen');
+    });
 
-  // 縦横比を保つための計算
-  const widthRatio = canvasWidth / imgWidth;
-  const heightRatio = canvasHeight / imgHeight;
-  
-  // 縦横比を保つための新しい幅と高さ
-  const ratio = Math.min(widthRatio, heightRatio); // 縦横どちらかにフィットするように最小の比率を取る
-  const newWidth = imgWidth * ratio;
-  const newHeight = imgHeight * ratio;
+    eraserModeBtn.addEventListener('click', () => {
+      switchMode('eraser');
+    });
 
-  // キャンバス内に縦横比を保って描画
-  const offsetX = (canvasWidth - newWidth) / 2; // 画像を横方向で中央に配置
-  const offsetY = (canvasHeight - newHeight) / 2; // 画像を縦方向で中央に配置
+    drawingCanvas.addEventListener('pointerdown', (e) => {
+      drawing = true;
+      drawingCtx.beginPath();
+      drawingCtx.moveTo(e.clientX, e.clientY);
+    });
 
-  // 背景画像を中央に配置して描画
-  backgroundCtx.clearRect(0, 0, backgroundCanvas.width, backgroundCanvas.height); // 既存の描画を消す
-  backgroundCtx.drawImage(background, offsetX, offsetY, newWidth, newHeight);
-};
+    drawingCanvas.addEventListener('pointermove', (e) => {
+      if (drawing) {
+        drawingCtx.lineTo(e.clientX, e.clientY);
+        drawingCtx.lineWidth = lineWidth;
+        drawingCtx.strokeStyle = color;
+        drawingCtx.stroke();
+      }
+    });
 
-// モード切替ボタンのクリックイベント
-modeButton.addEventListener('click', () => {
-  if (currentMode === 'pen') {
-    currentMode = 'eraser';
-    modeButton.textContent = '消しゴムモード';
-    erasing = true;
-    ctx.globalCompositeOperation = 'destination-out'; // 消去モードに設定
-  } else {
-    currentMode = 'pen';
-    modeButton.textContent = 'ペンモード';
-    erasing = false;
-    ctx.globalCompositeOperation = 'source-over'; // 通常の描画モードに戻す
-  }
-});
+    drawingCanvas.addEventListener('pointerup', () => {
+      drawing = false;
+    });
 
-// ペンツールでお絵描き
-canvas.addEventListener('pointerdown', (e) => {
-  drawing = true;
-  ctx.beginPath();
-  ctx.moveTo(e.clientX, e.clientY);
-});
-canvas.addEventListener('pointermove', (e) => {
-  if (drawing) {
-    ctx.lineTo(e.clientX, e.clientY);
-    ctx.lineWidth = lineWidth;
-    ctx.strokeStyle = strokeStyle;
-    ctx.stroke();
-  }
-});
-canvas.addEventListener('pointerup', () => {
-  drawing = false;
-});
+    function switchMode(newMode) {
+      mode = newMode;
+      if (mode === 'eraser') {
+        drawingCtx.globalCompositeOperation = 'destination-out';
+      } else {
+        drawingCtx.globalCompositeOperation = 'source-over';
+      }
+    }
 
-// アイコンドラッグ
-const icon = document.getElementById('icon1');
-let dragging = false;
-let offsetX, offsetY;
+    function changeColor(newColor) {
+      color = newColor;
+    }
 
-icon.addEventListener('pointerdown', (e) => {
-  dragging = true;
-  offsetX = e.offsetX;
-  offsetY = e.offsetY;
-});
-document.addEventListener('pointermove', (e) => {
-  if (dragging) {
-    icon.style.left = (e.clientX - offsetX) + 'px';
-    icon.style.top = (e.clientY - offsetY) + 'px';
-  }
-});
-document.addEventListener('pointerup', () => {
-  dragging = false;
-});
+    function changeLineWidth(newWidth) {
+      lineWidth = newWidth;
+    }
 
-// ツールボタンのクリックイベント
-penButton.addEventListener('click', () => {
-  lineWidth = 5;
-  strokeStyle = 'red';
-});
-eraserButton.addEventListener('click', () => {
-  lineWidth = 10;
-  strokeStyle = 'white';
-});
-clearButton.addEventListener('click', () => {
-  ctx.clearRect(0, 0, canvas.width, canvas.height); // 描画をクリア
-  backgroundCtx.clearRect(0, 0, backgroundCanvas.width, backgroundCanvas.height); // 背景もクリア
-  backgroundCtx.drawImage(background, 0, 0, backgroundCanvas.width, backgroundCanvas.height); // 背景を再描画
-});
-</script>
-
+    function selectCharacter(character) {
+      console.log(`選択されたキャラクター: ${character}`);
+      characterList.style.display = 'none';
+    }
+  </script>
 </body>
 </html>
