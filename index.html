@@ -36,9 +36,15 @@ window.addEventListener('resize', resizeCanvas);
 
 // 背景マップ（ここは好きなマップ画像に変えてOK）
 const background = new Image();
-background.src = 'https://github.com/nea1228/eternal-return-board/raw/main/image.png'; // 適当なマップ画像
+background.src = 'https://github.com/nea1228/eternal-return-board/raw/main/image.png';
+
 background.onload = () => {
-  ctx.drawImage(background, 0, 0, canvas.width, canvas.height);
+  // キャンバスのサイズに合わせて画像をリサイズ
+  const canvasWidth = canvas.width;
+  const canvasHeight = canvas.height;
+
+  // 背景画像を画面いっぱいに描画
+  ctx.drawImage(background, 0, 0, canvasWidth, canvasHeight);
 };
 
 // ペンツールでお絵描き
