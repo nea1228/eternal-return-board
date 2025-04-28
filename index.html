@@ -13,14 +13,16 @@
       touch-action: none;
       user-select: none;
     }
-    .mode-button {
+    .mode-button, .tool-button {
       position: absolute;
       top: 10px;
-      left: 10px;
       padding: 10px;
       background-color: #fff;
       border: 1px solid #ccc;
       cursor: pointer;
+    }
+    .tool-button {
+      top: 50px;
     }
   </style>
 </head>
@@ -38,15 +40,27 @@
 <!-- モード切替ボタン -->
 <div id="modeButton" class="mode-button">ペンモード</div>
 
+<!-- ツールボタン -->
+<div id="toolButtons" class="tool-button">
+  <button id="penButton">ペン</button>
+  <button id="eraserButton">消しゴム</button>
+  <button id="clearButton">クリア</button>
+</div>
+
 <script>
 const canvas = document.getElementById('map');
 const ctx = canvas.getContext('2d');
 const backgroundCanvas = document.getElementById('backgroundCanvas');
 const backgroundCtx = backgroundCanvas.getContext('2d');
 const modeButton = document.getElementById('modeButton');
+const penButton = document.getElementById('penButton');
+const eraserButton = document.getElementById('eraserButton');
+const clearButton = document.getElementById('clearButton');
 let currentMode = 'pen'; // 初期モードはペン
 let drawing = false;
 let erasing = false;
+let lineWidth = 5; // 初期の線の太さ
+let strokeStyle = 'red'; // 初期の線の色
 
 function resizeCanvas() {
   canvas.width = window.innerWidth;
@@ -62,7 +76,29 @@ const background = new Image();
 background.src = 'https://github.com/nea1228/eternal-return-board/raw/main/image.png';
 
 background.onload = () => {
-  backgroundCtx.drawImage(background, 0, 0, backgroundCanvas.width, backgroundCanvas.height);
+  const canvasWidth = canvas.width;
+  const canvasHeight = canvas.height;
+
+  // 画像の元の幅と高さ
+  const imgWidth = background.width;
+  const imgHeight = background.height;
+
+  // 縦横比を保つための計算
+  const widthRatio = canvasWidth / imgWidth;
+  const heightRatio = canvasHeight / imgHeight;
+  
+  // 縦横比を保つための新しい幅と高さ
+  const ratio = Math.min(widthRatio, heightRatio); // 縦横どちらかにフィットするように最小の比率を取る
+  const newWidth = imgWidth * ratio;
+  const newHeight = imgHeight * ratio;
+
+  // キャンバス内に縦横比を保って描画
+  const offsetX = (canvasWidth - newWidth) / 2; // 画像を横方向で中央に配置
+  const offsetY = (canvasHeight - newHeight) / 2; // 画像を縦方向で中央に配置
+
+  // 背景画像を中央に配置して描画
+  backgroundCtx.clearRect(0, 0, backgroundCanvas.width, backgroundCanvas.height); // 既存の描画を消す
+  backgroundCtx.drawImage(background, offsetX, offsetY, newWidth, newHeight);
 };
 
 // モード切替ボタンのクリックイベント
@@ -72,8 +108,6 @@ modeButton.addEventListener('click', () => {
     modeButton.textContent = '消しゴムモード';
     erasing = true;
     ctx.globalCompositeOperation = 'destination-out'; // 消去モードに設定
-    ctx.lineWidth = 10; // 消しゴムの太さ
-    ctx.strokeStyle = 'rgba(0,0,0,1)'; // 不透明な黒で描画
   } else {
     currentMode = 'pen';
     modeButton.textContent = 'ペンモード';
@@ -91,6 +125,8 @@ canvas.addEventListener('pointerdown', (e) => {
 canvas.addEventListener('pointermove', (e) => {
   if (drawing) {
     ctx.lineTo(e.clientX, e.clientY);
+    ctx.lineWidth = lineWidth;
+    ctx.strokeStyle = strokeStyle;
     ctx.stroke();
   }
 });
@@ -116,6 +152,21 @@ document.addEventListener('pointermove', (e) => {
 });
 document.addEventListener('pointerup', () => {
   dragging = false;
+});
+
+// ツールボタンのクリックイベント
+penButton.addEventListener('click', () => {
+  lineWidth = 5;
+  strokeStyle = 'red';
+});
+eraserButton.addEventListener('click', () => {
+  lineWidth = 10;
+  strokeStyle = 'white';
+});
+clearButton.addEventListener('click', () => {
+  ctx.clearRect(0, 0, canvas.width, canvas.height); // 描画をクリア
+  backgroundCtx.clearRect(0, 0, backgroundCanvas.width, backgroundCanvas.height); // 背景もクリア
+  backgroundCtx.drawImage(background, 0, 0, backgroundCanvas.width, backgroundCanvas.height); // 背景を再描画
 });
 </script>
 
