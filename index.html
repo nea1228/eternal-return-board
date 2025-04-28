@@ -13,6 +13,24 @@
       touch-action: none;
       user-select: none;
     }
+    .toolbar {
+      position: fixed;
+      top: 10px;
+      left: 10px;
+      background-color: rgba(255, 255, 255, 0.7);
+      padding: 10px;
+      border-radius: 8px;
+      z-index: 10;
+    }
+    .toolbar button {
+      margin: 5px;
+    }
+    .color-picker button {
+      width: 30px;
+      height: 30px;
+      border: none;
+      cursor: pointer;
+    }
   </style>
 </head>
 <body>
@@ -20,13 +38,30 @@
 <!-- 背景マップ -->
 <canvas id="map"></canvas>
 
-<!-- キャラアイコン（例：味方チーム用） -->
-<img src="https://upload.wikimedia.org/wikipedia/commons/8/84/Example.svg" class="icon" id="icon1" style="left: 100px; top: 100px;">
+<!-- キャラクターアイコン（例：味方チーム用） -->
+<div class="toolbar">
+  <h3>ペンツール</h3>
+  <div class="color-picker">
+    <button style="background-color: red;" data-color="red"></button>
+    <button style="background-color: blue;" data-color="blue"></button>
+    <button style="background-color: orange;" data-color="orange"></button>
+    <button style="background-color: green;" data-color="green"></button>
+  </div>
+  <br>
+  <button id="pen-thin">細いペン</button>
+  <button id="pen-thick">太いペン</button>
+  <br>
+  <button id="eraser">消しゴム</button>
+  <h3>チーム設定</h3>
+  <button id="team-red">赤チーム</button>
+  <button id="team-blue">青チーム</button>
+</div>
 
 <script>
 const canvas = document.getElementById('map');
 const ctx = canvas.getContext('2d');
 
+// 画面サイズのリサイズ
 function resizeCanvas() {
   canvas.width = window.innerWidth;
   canvas.height = window.innerHeight;
@@ -42,65 +77,136 @@ background.onload = () => {
   const canvasWidth = canvas.width;
   const canvasHeight = canvas.height;
 
-  // 画像の元の幅と高さ
   const imgWidth = background.width;
   const imgHeight = background.height;
-
-  // 縦横比を保つための計算
+  
   const widthRatio = canvasWidth / imgWidth;
   const heightRatio = canvasHeight / imgHeight;
-  
-  // 縦横比を保つための新しい幅と高さ
-  const ratio = Math.min(widthRatio, heightRatio); // 縦横どちらかにフィットするように最小の比率を取る
+  const ratio = Math.min(widthRatio, heightRatio);
   const newWidth = imgWidth * ratio;
   const newHeight = imgHeight * ratio;
 
-  // キャンバス内に縦横比を保って描画
-  const offsetX = (canvasWidth - newWidth) / 2; // 画像を横方向で中央に配置
-  const offsetY = (canvasHeight - newHeight) / 2; // 画像を縦方向で中央に配置
+  const offsetX = (canvasWidth - newWidth) / 2;
+  const offsetY = (canvasHeight - newHeight) / 2;
 
-  // 背景画像を中央に配置して描画
-  ctx.clearRect(0, 0, canvas.width, canvas.height); // 既存の描画を消す
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
   ctx.drawImage(background, offsetX, offsetY, newWidth, newHeight);
 };
 
-// ペンツールでお絵描き
+// ペンツールと消しゴム設定
 let drawing = false;
+let erasing = false;
+let currentColor = 'red';
+let currentLineWidth = 3;
+
+// アイコンを動かすための関数
+let dragging = false;
+let draggedIcon = null;
+let offsetX, offsetY;
+
+// アイコンのデータ
+const characters = {
+  red: [
+    {id: 'icon1', x: 100, y: 100}, 
+    {id: 'icon2', x: 200, y: 100}, 
+    {id: 'icon3', x: 300, y: 100}
+  ],
+  blue: [
+    {id: 'icon4', x: 100, y: 200}, 
+    {id: 'icon5', x: 200, y: 200}, 
+    {id: 'icon6', x: 300, y: 200}
+  ]
+};
+
+// キャラクターアイコンを配置する関数
+function placeCharacterIcons(team) {
+  const teamData = characters[team];
+  teamData.forEach((character) => {
+    const icon = document.createElement('img');
+    icon.src = 'https://upload.wikimedia.org/wikipedia/commons/8/84/Example.svg'; // アイコン画像
+    icon.classList.add('icon');
+    icon.style.left = `${character.x}px`;
+    icon.style.top = `${character.y}px`;
+    icon.dataset.team = team;
+    icon.id = character.id;
+    document.body.appendChild(icon);
+
+    icon.addEventListener('pointerdown', (e) => {
+      dragging = true;
+      draggedIcon = icon;
+      offsetX = e.offsetX;
+      offsetY = e.offsetY;
+    });
+  });
+}
+
+// アイコンをドラッグする
+document.addEventListener('pointermove', (e) => {
+  if (dragging && draggedIcon) {
+    draggedIcon.style.left = (e.clientX - offsetX) + 'px';
+    draggedIcon.style.top = (e.clientY - offsetY) + 'px';
+  }
+});
+
+// ドラッグ終了
+document.addEventListener('pointerup', () => {
+  dragging = false;
+  draggedIcon = null;
+});
+
+// ペンツールの操作
 canvas.addEventListener('pointerdown', (e) => {
   drawing = true;
   ctx.beginPath();
   ctx.moveTo(e.clientX, e.clientY);
 });
+
 canvas.addEventListener('pointermove', (e) => {
   if (drawing) {
     ctx.lineTo(e.clientX, e.clientY);
-    ctx.strokeStyle = 'red';
-    ctx.lineWidth = 3;
+    ctx.strokeStyle = currentColor;
+    ctx.lineWidth = currentLineWidth;
     ctx.stroke();
   }
 });
+
 canvas.addEventListener('pointerup', () => {
   drawing = false;
 });
 
-// アイコンドラッグ
-const icon = document.getElementById('icon1');
-let dragging = false;
-let offsetX, offsetY;
-
-icon.addEventListener('pointerdown', (e) => {
-  dragging = true;
-  offsetX = e.offsetX;
-  offsetY = e.offsetY;
-});
-document.addEventListener('pointermove', (e) => {
-  if (dragging) {
-    icon.style.left = (e.clientX - offsetX) + 'px';
-    icon.style.top = (e.clientY - offsetY) + 'px';
+// 消しゴムの操作
+document.getElementById('eraser').addEventListener('click', () => {
+  erasing = !erasing;
+  if (erasing) {
+    ctx.globalCompositeOperation = 'destination-out';
+  } else {
+    ctx.globalCompositeOperation = 'source-over';
   }
 });
-document.addEventListener('pointerup', () => {
-  dragging = false;
+
+// ペンの色変更
+document.querySelectorAll('.color-picker button').forEach(button => {
+  button.addEventListener('click', (e) => {
+    currentColor = e.target.dataset.color;
+  });
+});
+
+// ペンの太さ変更
+document.getElementById('pen-thin').addEventListener('click', () => {
+  currentLineWidth = 3;
+});
+
+document.getElementById('pen-thick').addEventListener('click', () => {
+  currentLineWidth = 6;
+});
+
+// チームの選択
+document.getElementById('team-red').addEventListener('click', () => {
+  placeCharacterIcons('red');
+});
+
+document.getElementById('team-blue').addEventListener('click', () => {
+  placeCharacterIcons('blue');
 });
 </script>
 
