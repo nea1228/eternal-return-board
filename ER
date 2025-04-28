@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>作戦ボード（プロトタイプ）</title>
+  <style>
+    body { margin: 0; overflow: hidden; touch-action: none; }
+    canvas { position: absolute; top: 0; left: 0; }
+    img.icon {
+      position: absolute;
+      width: 50px;
+      height: 50px;
+      touch-action: none;
+      user-select: none;
+    }
+  </style>
+</head>
+<body>
+
+<!-- 背景マップ -->
+<canvas id="map"></canvas>
+
+<!-- キャラアイコン（例：味方チーム用） -->
+<img src="https://upload.wikimedia.org/wikipedia/commons/8/84/Example.svg" class="icon" id="icon1" style="left: 100px; top: 100px;">
+
+<script>
+const canvas = document.getElementById('map');
+const ctx = canvas.getContext('2d');
+
+function resizeCanvas() {
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+}
+resizeCanvas();
+window.addEventListener('resize', resizeCanvas);
+
+// 背景マップ（ここは好きなマップ画像に変えてOK）
+const background = new Image();
+background.src = 'https://i.imgur.com/4AiXzf8.jpeg'; // 適当なマップ画像
+background.onload = () => {
+  ctx.drawImage(background, 0, 0, canvas.width, canvas.height);
+};
+
+// ペンツールでお絵描き
+let drawing = false;
+canvas.addEventListener('pointerdown', (e) => {
+  drawing = true;
+  ctx.beginPath();
+  ctx.moveTo(e.clientX, e.clientY);
+});
+canvas.addEventListener('pointermove', (e) => {
+  if (drawing) {
+    ctx.lineTo(e.clientX, e.clientY);
+    ctx.strokeStyle = 'red';
+    ctx.lineWidth = 3;
+    ctx.stroke();
+  }
+});
+canvas.addEventListener('pointerup', () => {
+  drawing = false;
+});
+
+// アイコンドラッグ
+const icon = document.getElementById('icon1');
+let dragging = false;
+let offsetX, offsetY;
+
+icon.addEventListener('pointerdown', (e) => {
+  dragging = true;
+  offsetX = e.offsetX;
+  offsetY = e.offsetY;
+});
+document.addEventListener('pointermove', (e) => {
+  if (dragging) {
+    icon.style.left = (e.clientX - offsetX) + 'px';
+    icon.style.top = (e.clientY - offsetY) + 'px';
+  }
+});
+document.addEventListener('pointerup', () => {
+  dragging = false;
+});
+</script>
+
+</body>
+</html>
